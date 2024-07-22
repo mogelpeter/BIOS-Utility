@@ -11,19 +11,12 @@ A utility to backup and restore BIOS settings using AFUWINx64. This script allow
 ## Installation
 
 1. Clone the repository or download the script.
-2. Install the required Python modules:
-    ```sh
-    pip install pystyle
-    ```
+2. Download AFUWINx64 from > https://www.ami.com/bios-uefi-utilities/ and put the named file into the folder `C:\AFUWIN`
 
 ## Usage
 
-1. Open a command prompt as Administrator.
-2. Navigate to the directory where the script is located.
-3. Run the script:
-    ```sh
-    python bios_backup_restore.py
-    ```
+1. Navigate to the directory where the script is located.
+2. Run the script with the start.bat file.
 
 ## Options
 
