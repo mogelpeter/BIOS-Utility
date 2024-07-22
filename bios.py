@@ -17,7 +17,6 @@ install_required_modules()
 
 from pystyle import Colors, Colorate
 from rich.console import Console
-from rich.table import Table
 
 console = Console()
 
@@ -42,15 +41,24 @@ def check_windows_version():
     
     print_colored("Windows version check: OK", Colors.green)
 
-# Check if AFUWIN is installed
-def check_afuwin_installed():
+# Check if AFUWIN and UEFITool are installed
+def check_tools_installed():
     afuwin_path = r"C:\AFUWIN\AFUWINx64.EXE"  # Path to AFUWIN
+    uefitool_path = r"C:\AFUWIN\UEFITool.exe"  # Path to UEFITool
+
     if not os.path.isfile(afuwin_path):
         print_colored("AFUWIN not found. Please download it from the official website and install it.", Colors.red)
         sys.exit(1)
     else:
         print_colored("AFUWIN is already installed.", Colors.green)
-    return afuwin_path
+
+    if not os.path.isfile(uefitool_path):
+        print_colored("UEFITool not found. Please download it from the official website and install it.", Colors.red)
+        sys.exit(1)
+    else:
+        print_colored("UEFITool is already installed.", Colors.green)
+    
+    return afuwin_path, uefitool_path
 
 # Run a command and handle its output
 def run_command(command):
@@ -124,8 +132,18 @@ def wait_for_keypress():
     while True:
         if msvcrt.kbhit():
             key = msvcrt.getch().decode('utf-8')
-            if key in ['1', '2', '3']:
+            if key in ['1', '2', '3', '4']:
                 return key
+
+# Analyze the BIOS ROM file using UEFITool and save the output to a text file
+def analyze_bios_with_uefitool(uefitool_path, rom_file, output_file):
+    command = f'"{uefitool_path}" {rom_file} -o {output_file}'
+    result = subprocess.run(command, shell=True, capture_output=True, text=True)
+    
+    if result.returncode == 0:
+        print_colored(f"BIOS analysis completed successfully. Output saved to {output_file}", Colors.green)
+    else:
+        print_colored(f"Failed to analyze BIOS. Error: {result.stderr}", Colors.red)
 
 # Read and print the BIOS version from an OCB file
 def read_ocb_bios_version(ocb_file):
@@ -151,16 +169,19 @@ def main():
     try:
         clear_console()
         check_windows_version()
-        afuwin_path = check_afuwin_installed()
+        afuwin_path, uefitool_path = check_tools_installed()
 
         # Path to the backup directory in the same directory as the script
         script_dir = os.path.dirname(os.path.abspath(__file__))
         backup_dir = os.path.join(script_dir, "backups")
+        analysis_dir = os.path.join(script_dir, "analysis")
         ocb_dir = os.path.join(script_dir, "ocb_files")
 
         # Ensure the directories exist
         if not os.path.exists(backup_dir):
             os.makedirs(backup_dir)
+        if not os.path.exists(analysis_dir):
+            os.makedirs(analysis_dir)
         if not os.path.exists(ocb_dir):
             os.makedirs(ocb_dir)
 
@@ -170,9 +191,10 @@ def main():
         print_colored("Select an option:", Colors.cyan)
         print_colored("1. Create a backup of the BIOS settings", Colors.cyan)
         print_colored("2. Restore the BIOS settings from a backup", Colors.cyan)
-        print_colored("3. Check BIOS Version of OCB File", Colors.cyan)
+        print_colored("3. Analyze BIOS ROM file (WIP)", Colors.cyan)
+        print_colored("4. Check BIOS Version of OCB File (MSI)", Colors.cyan)
         
-        print("Enter your choice (1, 2, or 3): ", end='', flush=True)
+        print("Enter your choice (1, 2, 3, or 4): ", end='', flush=True)
         choice = wait_for_keypress()
 
         clear_console()
@@ -202,6 +224,19 @@ def main():
             else:
                 print_colored("Failed to restore BIOS settings.", Colors.red)
         elif choice == '3':
+            print_colored("Available ROM files:", Colors.cyan)
+            rom_files = [f for f in os.listdir(backup_dir) if f.endswith('.rom')]
+            for idx, rom in enumerate(rom_files):
+                print_colored(f"{idx + 1}. {rom}", Colors.yellow)
+            
+            rom_choice = int(input("Enter the number of the ROM file to analyze: ")) - 1
+            rom_file = os.path.join(backup_dir, rom_files[rom_choice])
+            
+            timestamp = datetime.now().strftime("%d.%m.%Y_%H%M")
+            output_file = os.path.join(analysis_dir, f"bios_analysis_{timestamp}.txt")
+            
+            analyze_bios_with_uefitool(uefitool_path, rom_file, output_file)
+        elif choice == '4':
             print_colored("Available OCB files:", Colors.cyan)
             ocb_files = [f for f in os.listdir(ocb_dir) if f.endswith('.ocb')]
             for idx, ocb in enumerate(ocb_files):
@@ -212,7 +247,7 @@ def main():
             
             read_ocb_bios_version(ocb_file)
         else:
-            print_colored("Invalid choice, please restart the script and select 1, 2, or 3.", Colors.red)
+            print_colored("Invalid choice, please restart the script and select 1, 2, 3, or 4.", Colors.red)
 
     except Exception as e:
         print_colored(f"An error occurred: {e}", Colors.red)
