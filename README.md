@@ -1,2 +1,2 @@
-# MSI-BIOS-converter
+# BIOS Backup and Restore Utility
  
