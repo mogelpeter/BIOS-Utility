@@ -18,7 +18,7 @@ install_required_modules()
 
 from pystyle import Colors, Colorate, Center, Write, Col
 from rich.console import Console
-from uefi_firmware import UEFIFirmware
+from uefi_firmware.uefi import FirmwareVolume
 
 console = Console()
 
@@ -139,14 +139,16 @@ def wait_for_keypress():
 def analyze_bios_rom(rom_file, output_file):
     try:
         with open(rom_file, 'rb') as f:
-            firmware = UEFIFirmware(f.read())
-            result = firmware.parse()
-            if result:
+            firmware = f.read()
+            fv = FirmwareVolume(firmware)
+            fv.process()
+            info = fv.showinfo()
+            if info:
                 with open(output_file, 'w') as out_f:
-                    out_f.write(firmware.showinfo())
+                    out_f.write(info)
                 print_colored(f"BIOS analysis completed successfully. Output saved to {output_file}", Colors.green)
             else:
-                print_colored("Failed to analyze BIOS.", Colors.red)
+                print_colored("Failed to extract BIOS information.", Colors.red)
     except Exception as e:
         print_colored(f"An error occurred while analyzing the BIOS: {e}", Colors.red)
 
