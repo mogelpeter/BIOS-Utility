@@ -7,7 +7,7 @@ import shutil
 
 # Check and install required modules
 def install_required_modules():
-    required_modules = ['pystyle', 'rich']
+    required_modules = ['pystyle', 'rich', 'chipsec']
     for module in required_modules:
         try:
             __import__(module)
@@ -18,8 +18,6 @@ install_required_modules()
 
 from pystyle import Colors, Colorate, Center, Write, Col
 from rich.console import Console
-
-console = Console()
 
 # Clear the console
 def clear_console():
@@ -46,24 +44,17 @@ def check_windows_version():
     
     print_colored("Windows version check: OK", Colors.green)
 
-# Check if AFUWIN and UEFIExtract are installed
+# Check if AFUWIN is installed
 def check_tools_installed():
     afuwin_path = r"C:\AFUWIN\AFUWINx64.EXE"  # Path to AFUWIN
-    uefiextract_path = r"C:\AFUWIN\UEFIExtract.exe"  # Path to UEFIExtract
 
     if not os.path.isfile(afuwin_path):
         print_colored("AFUWIN not found. Please download it from the official website and install it.", Colors.red)
         sys.exit(1)
     else:
         print_colored("AFUWIN is already installed.", Colors.green)
-
-    if not os.path.isfile(uefiextract_path):
-        print_colored("UEFIExtract not found. Please download it from the official website and install it.", Colors.red)
-        sys.exit(1)
-    else:
-        print_colored("UEFIExtract is already installed.", Colors.green)
     
-    return afuwin_path, uefiextract_path
+    return afuwin_path
 
 # Run a command and handle its output
 def run_command(command):
@@ -141,27 +132,18 @@ def wait_for_keypress():
             if key in ['1', '2', '3', '4']:
                 return key
 
-# Analyze the BIOS ROM file using UEFIExtract and save the output to a text file
-def analyze_bios_with_uefiextract(uefiextract_path, rom_file, output_file):
-    extract_dir = os.path.join(os.path.dirname(output_file), f"{os.path.basename(rom_file)}.dump")
-    if not os.path.exists(extract_dir):
-        os.makedirs(extract_dir)
-    
-    command = f'"{uefiextract_path}" {rom_file} {extract_dir}'
-    result = subprocess.run(command, shell=True, capture_output=True, text=True)
-    
-    if result.returncode == 0:
-        settings_file = os.path.join(extract_dir, "bios_settings.txt")
-        with open(settings_file, 'w') as f:
-            for root, dirs, files in os.walk(extract_dir):
-                for file in files:
-                    file_path = os.path.join(root, file)
-                    with open(file_path, 'r', errors='ignore') as src:
-                        f.write(f"\n\nFile: {file_path}\n{'='*80}\n")
-                        f.write(src.read())
-        print_colored(f"BIOS analysis completed successfully. Output saved to {settings_file}", Colors.green)
-    else:
-        print_colored(f"Failed to analyze BIOS. Error: {result.stderr}", Colors.red)
+# Analyze the BIOS ROM file using chipsec and save the output to a text file
+def analyze_bios_with_chipsec(rom_file, output_file):
+    try:
+        chipsec_cmd = [sys.executable, "-m", "chipsec_util", "decode", rom_file, "-o", output_file]
+        result = subprocess.run(chipsec_cmd, capture_output=True, text=True)
+        
+        if result.returncode == 0:
+            print_colored(f"BIOS analysis completed successfully. Output saved to {output_file}", Colors.green)
+        else:
+            print_colored(f"Failed to analyze BIOS. Error: {result.stderr}", Colors.red)
+    except Exception as e:
+        print_colored(f"An error occurred while analyzing the BIOS: {e}", Colors.red)
 
 # Read and print the BIOS version from an OCB file and rename it
 def read_ocb_bios_version(ocb_file):
@@ -196,7 +178,7 @@ def main():
     try:
         clear_console()
         check_windows_version()
-        afuwin_path, uefiextract_path = check_tools_installed()
+        afuwin_path = check_tools_installed()
 
         # Path to the backup directory in the same directory as the script
         script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -262,7 +244,7 @@ def main():
             timestamp = datetime.now().strftime("%d.%m.%Y_%H%M")
             output_file = os.path.join(analysis_dir, f"bios_analysis_{timestamp}.txt")
             
-            analyze_bios_with_uefiextract(uefiextract_path, rom_file, output_file)
+            analyze_bios_with_chipsec(rom_file, output_file)
         elif choice == '4':
             print_colored("Available OCB files:", Colors.cyan)
             ocb_files = [f for f in os.listdir(ocb_dir) if f.endswith('.ocb')]
