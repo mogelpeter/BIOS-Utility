@@ -135,8 +135,9 @@ def wait_for_keypress():
 # Analyze the BIOS ROM file using chipsec and save the output to a text file
 def analyze_bios_with_chipsec(rom_file, output_file):
     try:
-        chipsec_cmd = [sys.executable, "-m", "chipsec_util", "decode", rom_file, "-o", output_file]
-        result = subprocess.run(chipsec_cmd, capture_output=True, text=True)
+        with open(output_file, 'w') as f:
+            chipsec_cmd = [sys.executable, "-m", "chipsec_util", "decode", rom_file]
+            result = subprocess.run(chipsec_cmd, stdout=f, stderr=subprocess.PIPE, text=True)
         
         if result.returncode == 0:
             print_colored(f"BIOS analysis completed successfully. Output saved to {output_file}", Colors.green)
