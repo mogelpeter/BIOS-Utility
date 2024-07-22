@@ -1,7 +1,9 @@
 # BIOS Backup and Restore Utility
 
 A utility to backup and restore BIOS settings using AFUWINx64. This script allows you to create a backup of your BIOS settings and restore them when needed.
-![Stable](https://img.shields.io/badge/status-stable-brightgreen) ![Discord](https://dcbadge.limes.pink/api/shield/741265873779818566?compact=true)
+
+![Stable](https://img.shields.io/badge/status-stable-brightgreen) 
+![Discord](https://dcbadge.limes.pink/api/shield/741265873779818566?compact=true)
 
 ## Prerequisites
 
