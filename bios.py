@@ -7,7 +7,7 @@ import shutil
 
 # Check and install required modules
 def install_required_modules():
-    required_modules = ['pystyle', 'rich']
+    required_modules = ['pystyle', 'rich', 'uefi_firmware']
     for module in required_modules:
         try:
             __import__(module)
@@ -18,6 +18,7 @@ install_required_modules()
 
 from pystyle import Colors, Colorate, Center, Write, Col
 from rich.console import Console
+from uefi_firmware import UEFIFirmware
 
 console = Console()
 
@@ -46,10 +47,9 @@ def check_windows_version():
     
     print_colored("Windows version check: OK", Colors.green)
 
-# Check if AFUWIN and UEFITool are installed
+# Check if AFUWIN is installed
 def check_tools_installed():
     afuwin_path = r"C:\AFUWIN\AFUWINx64.EXE"  # Path to AFUWIN
-    uefi_tool_path = r"C:\AFUWIN\UEFITool.exe"  # Path to UEFITool
 
     if not os.path.isfile(afuwin_path):
         print_colored("AFUWIN not found. Please download it from the official website and install it.", Colors.red)
@@ -57,13 +57,7 @@ def check_tools_installed():
     else:
         print_colored("AFUWIN is already installed.", Colors.green)
     
-    if not os.path.isfile(uefi_tool_path):
-        print_colored("UEFITool not found. Please download it and place it in the AFUWIN directory.", Colors.red)
-        sys.exit(1)
-    else:
-        print_colored("UEFITool is already installed.", Colors.green)
-    
-    return afuwin_path, uefi_tool_path
+    return afuwin_path
 
 # Run a command and handle its output
 def run_command(command):
@@ -142,30 +136,17 @@ def wait_for_keypress():
                 return key
 
 # Analyze the BIOS ROM file to extract settings and save the output to a text file
-def analyze_bios_rom(uefi_tool_path, rom_file, output_file):
+def analyze_bios_rom(rom_file, output_file):
     try:
-        # Use UEFITool to extract BIOS settings
-        extract_dir = os.path.join(os.path.dirname(output_file), "extracted")
-        if not os.path.exists(extract_dir):
-            os.makedirs(extract_dir)
-        
-        # Dumping the contents of the ROM file
-        dump_command = f'"{uefi_tool_path}" -extract {rom_file} {extract_dir}'
-        result, output = run_command(dump_command)
-
-        if result == 0:
-            # Read the extracted files and write to the output file
-            with open(output_file, 'w') as f_out:
-                for root, dirs, files in os.walk(extract_dir):
-                    for file in files:
-                        file_path = os.path.join(root, file)
-                        with open(file_path, 'r', errors='ignore') as f_in:
-                            f_out.write(f"\n{'='*20} {file} {'='*20}\n")
-                            f_out.write(f_in.read())
-            shutil.rmtree(extract_dir)  # Clean up the extracted files
-            print_colored(f"BIOS analysis completed successfully. Output saved to {output_file}", Colors.green)
-        else:
-            print_colored(f"Failed to analyze BIOS. Error: {output}", Colors.red)
+        with open(rom_file, 'rb') as f:
+            firmware = UEFIFirmware(f.read())
+            result = firmware.parse()
+            if result:
+                with open(output_file, 'w') as out_f:
+                    out_f.write(firmware.showinfo())
+                print_colored(f"BIOS analysis completed successfully. Output saved to {output_file}", Colors.green)
+            else:
+                print_colored("Failed to analyze BIOS.", Colors.red)
     except Exception as e:
         print_colored(f"An error occurred while analyzing the BIOS: {e}", Colors.red)
 
@@ -202,7 +183,7 @@ def main():
     try:
         clear_console()
         check_windows_version()
-        afuwin_path, uefi_tool_path = check_tools_installed()
+        afuwin_path = check_tools_installed()
 
         # Path to the backup directory in the same directory as the script
         script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -268,7 +249,7 @@ def main():
             timestamp = datetime.now().strftime("%d.%m.%Y_%H%M")
             output_file = os.path.join(analysis_dir, f"bios_analysis_{timestamp}.txt")
             
-            analyze_bios_rom(uefi_tool_path, rom_file, output_file)
+            analyze_bios_rom(rom_file, output_file)
         elif choice == '4':
             print_colored("Available OCB files:", Colors.cyan)
             ocb_files = [f for f in os.listdir(ocb_dir) if f.endswith('.ocb')]
