@@ -46,7 +46,7 @@ def check_afuwin_installed():
     return afuwin_path
 
 def run_command(command):
-    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.PIPE, text=True)
+    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.PIPE, text=True, creationflags=subprocess.CREATE_NO_WINDOW)
     output_lines = []
 
     try:
@@ -98,6 +98,14 @@ def restore_bios(afuwin_path, backup_file):
         print_colored("Fehler beim Wiederherstellen der BIOS-Einstellungen.", Colors.red)
         print("\n".join(output))
 
+def update_console_title(backup_dir):
+    backups = [f for f in os.listdir(backup_dir) if f.endswith('.rom')]
+    backup_count = len(backups)
+    title = "BIOS Backup and Restore Utility"
+    if backup_count > 0:
+        title += f" - Backups created {backup_count}"
+    os.system(f"title {title}")
+
 def main():
     try:
         clear_console()
@@ -107,6 +115,9 @@ def main():
         # Pfad zum Backup-Verzeichnis im selben Verzeichnis wie das Skript
         script_dir = os.path.dirname(os.path.abspath(__file__))
         backup_dir = os.path.join(script_dir, "backups")
+
+        # Aktualisieren des Konsolen-Titels
+        update_console_title(backup_dir)
 
         print_colored("Wählen Sie eine Option:", Colors.cyan)
         print_colored("1. Backup der BIOS-Einstellungen erstellen", Colors.cyan)
@@ -142,10 +153,6 @@ def main():
         print_colored(f"Ein Fehler ist aufgetreten: {e}", Colors.red)
 
     input("Drücken Sie Enter, um das Skript zu beenden...")
-
-    finally:
-        print_colored("Beende alle gestarteten Prozesse, um sicherzustellen, dass keine Ressourcen hängen bleiben.", Colors.cyan)
-        os.system(f"taskkill /f /im {os.path.basename(afuwin_path)}")
 
 if __name__ == "__main__":
     main()
