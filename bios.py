@@ -172,14 +172,11 @@ def main():
         # Path to the backup directory in the same directory as the script
         script_dir = os.path.dirname(os.path.abspath(__file__))
         backup_dir = os.path.join(script_dir, "backups")
-        analysis_dir = os.path.join(script_dir, "analysis")
         ocb_dir = os.path.join(script_dir, "ocb_files")
 
         # Ensure the directories exist
         if not os.path.exists(backup_dir):
             os.makedirs(backup_dir)
-        if not os.path.exists(analysis_dir):
-            os.makedirs(analysis_dir)
         if not os.path.exists(ocb_dir):
             os.makedirs(ocb_dir)
 
@@ -188,7 +185,7 @@ def main():
 
         print_gradient("1. Create a backup of the BIOS settings")
         print_gradient("2. Restore the BIOS settings from a backup")
-        print_gradient("3. Check BIOS Version of OCB File (MSI)")
+        print_gradient("3. MSI - Check BIOS version of .ocb file (WIP)")
         
         print("Enter your choice (1, 2, or 3): ", end='', flush=True)
         choice = wait_for_keypress()
@@ -233,18 +230,8 @@ def main():
         else:
             print_colored("Invalid choice, please restart the script and select 1, 2, or 3.", Colors.red)
 
-        print("\nPress Enter to return to the main menu or ESC to exit.")
-        while True:
-            key = msvcrt.getch()
-            if key == b'\r':  # Enter key
-                main()
-            elif key == b'\x1b':  # ESC key
-                sys.exit(0)
-
     except Exception as e:
         print_colored(f"An error occurred: {e}", Colors.red)
-
-    input("Press Enter to exit the script...")
 
 if __name__ == "__main__":
     main()

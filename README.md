@@ -1,4 +1,4 @@
-# BIOS Backup and Restore Utility ![Stable](https://img.shields.io/badge/status-stable-brightgreen)
+# BIOS Backup and Restore Utility ![Stable](https://img.shields.io/badge/status-stable-brightgreen) ![Discord](https://dcbadge.limes.pink/api/shield/741265873779818566?compact=true)
 
 A utility to backup and restore BIOS settings using AFUWINx64. This script allows you to create a backup of your BIOS settings and restore them when needed.
 
@@ -26,7 +26,7 @@ The script provides the following options:
 
 1. **Create a backup of the BIOS settings**: This option creates a backup of your current BIOS settings and saves it in a `.rom` file in the `backups` directory.
 2. **Restore the BIOS settings from a backup**: This option allows you to restore BIOS settings from a previously created backup.
-3. **Check BIOS Version of OCB File (MSI)**: This option reads the BIOS version from an MSI OCB file and renames the OCB file accordingly.
+3. **MSI - Check BIOS version of .ocb file (WIP)**: This option reads the BIOS version from an MSI OCB file and renames the OCB file accordingly.
 
 ## Notes
 
