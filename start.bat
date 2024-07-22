@@ -1,27 +1,27 @@
 @echo off
 setlocal
 
-:: Pfad zu Python-Exe
+:: Path to Python.exe
 set PYTHON_EXE=python
 
-:: Ermitteln des Verzeichnisses, in dem die Batch-Datei liegt
+:: Determine the directory in which the batch file is located
 set SCRIPT_DIR=%~dp0
 
-:: Pfad zum Python-Skript im selben Verzeichnis wie die Batch-Datei
+:: Path to the Python script in the same directory as the batch file
 set SCRIPT_PATH=%SCRIPT_DIR%bios.py
 
-:: Überprüfen, ob das Skript als Administrator ausgeführt wird
+:: Check whether the script is executed as administrator
 openfiles >nul 2>&1
 if %errorlevel% neq 0 (
-    echo Erneutes Ausführen des Skripts als Administrator...
+    echo Requesting Administrator Rights
     powershell -Command "Start-Process '%PYTHON_EXE%' -ArgumentList '%SCRIPT_PATH%' -Verb RunAs"
     exit /b
 )
 
-:: Ausführen des Skripts
+:: Execute the script
 "%PYTHON_EXE%" "%SCRIPT_PATH%"
 if %errorlevel% neq 0 (
-    echo Das Skript ist abgestürzt oder es gab einen Fehler. Drücken Sie eine beliebige Taste, um das Fenster zu schließen...
+    echo The script has crashed or there was an error. Press any button to close the window...
     pause >nul
 )
 
