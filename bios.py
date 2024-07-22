@@ -2,11 +2,11 @@ import os
 import subprocess
 import sys
 from datetime import datetime
-import time
+import msvcrt
 
 # Check and install required modules
 def install_required_modules():
-    required_modules = ['pystyle']
+    required_modules = ['pystyle', 'rich']
     for module in required_modules:
         try:
             __import__(module)
@@ -16,6 +16,10 @@ def install_required_modules():
 install_required_modules()
 
 from pystyle import Colors, Colorate
+from rich.console import Console
+from rich.table import Table
+
+console = Console()
 
 # Clear the console
 def clear_console():
@@ -25,6 +29,7 @@ def clear_console():
 def print_colored(text, color=Colors.white):
     print(Colorate.Color(color, text))
 
+# Check if the script is running on Windows 10 oder 11
 def check_windows_version():
     if os.name != 'nt':
         print_colored("This script can only run on Windows 10 or 11.", Colors.red)
@@ -37,6 +42,7 @@ def check_windows_version():
     
     print_colored("Windows version check: OK", Colors.green)
 
+# Check if AFUWIN is installed
 def check_afuwin_installed():
     afuwin_path = r"C:\AFUWIN\AFUWINx64.EXE"  # Path to AFUWIN
     if not os.path.isfile(afuwin_path):
@@ -46,6 +52,7 @@ def check_afuwin_installed():
         print_colored("AFUWIN is already installed.", Colors.green)
     return afuwin_path
 
+# Run a command and handle its output
 def run_command(command):
     process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.PIPE, text=True, creationflags=subprocess.CREATE_NO_WINDOW)
     output_lines = []
@@ -67,6 +74,7 @@ def run_command(command):
     rc = process.poll()
     return rc, output_lines
 
+# Dump the BIOS to a file
 def dump_bios(afuwin_path, backup_file):
     # Check if the file already exists and delete it
     if os.path.isfile(backup_file):
@@ -88,8 +96,9 @@ def dump_bios(afuwin_path, backup_file):
         print_colored("Error: The backup file is invalid or empty.", Colors.red)
         return False
 
+# Restore the BIOS from a backup file
 def restore_bios(afuwin_path, backup_file):
-    restore_command = f'"{afuwin_path}" {backup_file} /I'
+    restore_command = f'"{afuwin_path}" {backup_file} /P /B /K /N'
     print_colored(f"Executing command: {restore_command}", Colors.yellow)
     result, output = run_command(restore_command)
 
@@ -101,6 +110,7 @@ def restore_bios(afuwin_path, backup_file):
         print("\n".join(output))
         return False
 
+# Update the console title with the number of backups created
 def update_console_title(backup_dir):
     backups = [f for f in os.listdir(backup_dir) if f.endswith('.rom')]
     backup_count = len(backups)
@@ -108,6 +118,34 @@ def update_console_title(backup_dir):
     if backup_count > 0:
         title += f" - Backups created {backup_count}"
     os.system(f"title {title}")
+
+# Wait for a keypress and return the pressed key
+def wait_for_keypress():
+    while True:
+        if msvcrt.kbhit():
+            key = msvcrt.getch().decode('utf-8')
+            if key in ['1', '2', '3']:
+                return key
+
+# Read and print the BIOS version from an OCB file
+def read_ocb_bios_version(ocb_file):
+    try:
+        with open(ocb_file, 'rb') as f:
+            data = f.read()
+
+            # Extract the BIOS version assuming it starts with "$MOS$" and ends at the first null byte
+            start_index = data.find(b"$MOS$")
+            if start_index != -1:
+                end_index = data.find(b'\x00', start_index)
+                if end_index != -1:
+                    bios_version = data[start_index + 5:end_index].decode('utf-8', errors='ignore')
+                    print_colored(f"BIOS Version: {bios_version}", Colors.green)
+                else:
+                    print_colored("BIOS Version not found.", Colors.red)
+            else:
+                print_colored("BIOS Version not found.", Colors.red)
+    except Exception as e:
+        print_colored(f"An error occurred while reading the OCB file: {e}", Colors.red)
 
 def main():
     try:
@@ -118,6 +156,13 @@ def main():
         # Path to the backup directory in the same directory as the script
         script_dir = os.path.dirname(os.path.abspath(__file__))
         backup_dir = os.path.join(script_dir, "backups")
+        ocb_dir = os.path.join(script_dir, "ocb_files")
+
+        # Ensure the directories exist
+        if not os.path.exists(backup_dir):
+            os.makedirs(backup_dir)
+        if not os.path.exists(ocb_dir):
+            os.makedirs(ocb_dir)
 
         # Update the console title
         update_console_title(backup_dir)
@@ -125,15 +170,16 @@ def main():
         print_colored("Select an option:", Colors.cyan)
         print_colored("1. Create a backup of the BIOS settings", Colors.cyan)
         print_colored("2. Restore the BIOS settings from a backup", Colors.cyan)
+        print_colored("3. Check BIOS Version of OCB File", Colors.cyan)
         
-        choice = input("Enter your choice (1 or 2): ")
+        print("Enter your choice (1, 2, or 3): ", end='', flush=True)
+        choice = wait_for_keypress()
+
+        clear_console()
 
         if choice == '1':
             timestamp = datetime.now().strftime("%d.%m.%Y_%H%M")
             backup_file = os.path.join(backup_dir, f"bios_backup_{timestamp}.rom")
-            
-            if not os.path.exists(backup_dir):
-                os.makedirs(backup_dir)
             
             if dump_bios(afuwin_path, backup_file):
                 print_colored("The backup of the BIOS settings was successful.", Colors.green)
@@ -143,27 +189,30 @@ def main():
             print_colored("Available backups:", Colors.cyan)
             backups = [f for f in os.listdir(backup_dir) if f.endswith('.rom')]
             for idx, backup in enumerate(backups):
-                print_colored(f"{idx + 1}. {backup}", Colors.yellow)
+                # Format the backup filename for better readability
+                file_date, file_time = backup.split('_')[2], backup.split('_')[3].split('.')[0]
+                formatted_name = f"Backup - {file_date} created at {file_time[:2]}:{file_time[2:]}"
+                print_colored(f"{idx + 1}. {formatted_name}", Colors.yellow)
             
             backup_choice = int(input("Enter the number of the backup to restore: ")) - 1
             backup_file = os.path.join(backup_dir, backups[backup_choice])
             
             if restore_bios(afuwin_path, backup_file):
-                print_colored("Would you like to restart the PC in one minute?", Colors.cyan)
-                print_colored("1. Yes", Colors.cyan)
-                print_colored("2. No", Colors.cyan)
-                restart_choice = input("Enter your choice (1 or 2): ")
-                if restart_choice == '1':
-                    print_colored("The PC will restart in one minute.", Colors.green)
-                    os.system("shutdown /r /t 60")
-                elif restart_choice == '2':
-                    print_colored("The PC will not restart.", Colors.green)
-                else:
-                    print_colored("Invalid choice, the PC will not restart.", Colors.red)
+                print_colored("BIOS settings successfully restored.", Colors.green)
             else:
                 print_colored("Failed to restore BIOS settings.", Colors.red)
+        elif choice == '3':
+            print_colored("Available OCB files:", Colors.cyan)
+            ocb_files = [f for f in os.listdir(ocb_dir) if f.endswith('.ocb')]
+            for idx, ocb in enumerate(ocb_files):
+                print_colored(f"{idx + 1}. {ocb}", Colors.yellow)
+            
+            ocb_choice = int(input("Enter the number of the OCB file to check: ")) - 1
+            ocb_file = os.path.join(ocb_dir, ocb_files[ocb_choice])
+            
+            read_ocb_bios_version(ocb_file)
         else:
-            print_colored("Invalid choice, please restart the script and select 1 or 2.", Colors.red)
+            print_colored("Invalid choice, please restart the script and select 1, 2, or 3.", Colors.red)
 
     except Exception as e:
         print_colored(f"An error occurred: {e}", Colors.red)
