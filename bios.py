@@ -3,6 +3,7 @@ import subprocess
 import sys
 from datetime import datetime
 import msvcrt
+import shutil
 
 # Check and install required modules
 def install_required_modules():
@@ -15,7 +16,7 @@ def install_required_modules():
 
 install_required_modules()
 
-from pystyle import Colors, Colorate
+from pystyle import Colors, Colorate, Center, Write, Col
 from rich.console import Console
 
 console = Console()
@@ -27,6 +28,10 @@ def clear_console():
 # Print with colors
 def print_colored(text, color=Colors.white):
     print(Colorate.Color(color, text))
+
+def print_gradient(text):
+    gradient = Colorate.Horizontal(Colors.blue_to_green, text)
+    print(gradient)
 
 # Check if the script is running on Windows 10 oder 11
 def check_windows_version():
@@ -41,10 +46,10 @@ def check_windows_version():
     
     print_colored("Windows version check: OK", Colors.green)
 
-# Check if AFUWIN and UEFITool are installed
+# Check if AFUWIN and UEFIExtract are installed
 def check_tools_installed():
     afuwin_path = r"C:\AFUWIN\AFUWINx64.EXE"  # Path to AFUWIN
-    uefitool_path = r"C:\AFUWIN\UEFITool.exe"  # Path to UEFITool
+    uefiextract_path = r"C:\AFUWIN\UEFIExtract.exe"  # Path to UEFIExtract
 
     if not os.path.isfile(afuwin_path):
         print_colored("AFUWIN not found. Please download it from the official website and install it.", Colors.red)
@@ -52,13 +57,13 @@ def check_tools_installed():
     else:
         print_colored("AFUWIN is already installed.", Colors.green)
 
-    if not os.path.isfile(uefitool_path):
-        print_colored("UEFITool not found. Please download it from the official website and install it.", Colors.red)
+    if not os.path.isfile(uefiextract_path):
+        print_colored("UEFIExtract not found. Please download it from the official website and install it.", Colors.red)
         sys.exit(1)
     else:
-        print_colored("UEFITool is already installed.", Colors.green)
+        print_colored("UEFIExtract is already installed.", Colors.green)
     
-    return afuwin_path, uefitool_path
+    return afuwin_path, uefiextract_path
 
 # Run a command and handle its output
 def run_command(command):
@@ -104,14 +109,15 @@ def dump_bios(afuwin_path, backup_file):
         print_colored("Error: The backup file is invalid or empty.", Colors.red)
         return False
 
-# Restore the BIOS from a backup file
+# Restore the BIOS from a backup file and restart the PC after 60 seconds
 def restore_bios(afuwin_path, backup_file):
     restore_command = f'"{afuwin_path}" {backup_file} /P /B /K /N'
     print_colored(f"Executing command: {restore_command}", Colors.yellow)
     result, output = run_command(restore_command)
 
     if result == 0:
-        print_colored(f"BIOS settings successfully restored from {backup_file}", Colors.green)
+        print_colored(f"BIOS settings successfully restored from {backup_file}. The PC will restart in 60 seconds.", Colors.green)
+        os.system("shutdown /r /t 60")
         return True
     else:
         print_colored("Failed to restore BIOS settings.", Colors.red)
@@ -135,17 +141,29 @@ def wait_for_keypress():
             if key in ['1', '2', '3', '4']:
                 return key
 
-# Analyze the BIOS ROM file using UEFITool and save the output to a text file
-def analyze_bios_with_uefitool(uefitool_path, rom_file, output_file):
-    command = f'"{uefitool_path}" {rom_file} -o {output_file}'
+# Analyze the BIOS ROM file using UEFIExtract and save the output to a text file
+def analyze_bios_with_uefiextract(uefiextract_path, rom_file, output_file):
+    extract_dir = os.path.join(os.path.dirname(output_file), f"{os.path.basename(rom_file)}.dump")
+    if not os.path.exists(extract_dir):
+        os.makedirs(extract_dir)
+    
+    command = f'"{uefiextract_path}" {rom_file} {extract_dir}'
     result = subprocess.run(command, shell=True, capture_output=True, text=True)
     
     if result.returncode == 0:
-        print_colored(f"BIOS analysis completed successfully. Output saved to {output_file}", Colors.green)
+        settings_file = os.path.join(extract_dir, "bios_settings.txt")
+        with open(settings_file, 'w') as f:
+            for root, dirs, files in os.walk(extract_dir):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    with open(file_path, 'r', errors='ignore') as src:
+                        f.write(f"\n\nFile: {file_path}\n{'='*80}\n")
+                        f.write(src.read())
+        print_colored(f"BIOS analysis completed successfully. Output saved to {settings_file}", Colors.green)
     else:
         print_colored(f"Failed to analyze BIOS. Error: {result.stderr}", Colors.red)
 
-# Read and print the BIOS version from an OCB file
+# Read and print the BIOS version from an OCB file and rename it
 def read_ocb_bios_version(ocb_file):
     try:
         with open(ocb_file, 'rb') as f:
@@ -158,6 +176,15 @@ def read_ocb_bios_version(ocb_file):
                 if end_index != -1:
                     bios_version = data[start_index + 5:end_index].decode('utf-8', errors='ignore')
                     print_colored(f"BIOS Version: {bios_version}", Colors.green)
+                    
+                    timestamp = datetime.now().strftime("%d.%m.%Y_%H%M")
+                    new_ocb_file = f"MSI_BIOS_{bios_version}_{timestamp}.ocb"
+                    new_ocb_file_path = os.path.join(os.path.dirname(ocb_file), new_ocb_file)
+                    
+                    # Ensure the file is not open before renaming
+                    f.close()
+                    os.rename(ocb_file, new_ocb_file_path)
+                    print_colored(f"OCB file renamed to {new_ocb_file}", Colors.green)
                 else:
                     print_colored("BIOS Version not found.", Colors.red)
             else:
@@ -169,7 +196,7 @@ def main():
     try:
         clear_console()
         check_windows_version()
-        afuwin_path, uefitool_path = check_tools_installed()
+        afuwin_path, uefiextract_path = check_tools_installed()
 
         # Path to the backup directory in the same directory as the script
         script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -188,11 +215,10 @@ def main():
         # Update the console title
         update_console_title(backup_dir)
 
-        print_colored("Select an option:", Colors.cyan)
-        print_colored("1. Create a backup of the BIOS settings", Colors.cyan)
-        print_colored("2. Restore the BIOS settings from a backup", Colors.cyan)
-        print_colored("3. Analyze BIOS ROM file (WIP)", Colors.cyan)
-        print_colored("4. Check BIOS Version of OCB File (MSI)", Colors.cyan)
+        print_gradient("1. Create a backup of the BIOS settings")
+        print_gradient("2. Restore the BIOS settings from a backup")
+        print_gradient("3. Analyze BIOS ROM file (WIP)")
+        print_gradient("4. Check BIOS Version of OCB File (MSI)")
         
         print("Enter your choice (1, 2, 3, or 4): ", end='', flush=True)
         choice = wait_for_keypress()
@@ -212,7 +238,8 @@ def main():
             backups = [f for f in os.listdir(backup_dir) if f.endswith('.rom')]
             for idx, backup in enumerate(backups):
                 # Format the backup filename for better readability
-                file_date, file_time = backup.split('_')[2], backup.split('_')[3].split('.')[0]
+                file_date = backup.split('_')[2]
+                file_time = backup.split('_')[3].split('.')[0]
                 formatted_name = f"Backup - {file_date} created at {file_time[:2]}:{file_time[2:]}"
                 print_colored(f"{idx + 1}. {formatted_name}", Colors.yellow)
             
@@ -235,7 +262,7 @@ def main():
             timestamp = datetime.now().strftime("%d.%m.%Y_%H%M")
             output_file = os.path.join(analysis_dir, f"bios_analysis_{timestamp}.txt")
             
-            analyze_bios_with_uefitool(uefitool_path, rom_file, output_file)
+            analyze_bios_with_uefiextract(uefiextract_path, rom_file, output_file)
         elif choice == '4':
             print_colored("Available OCB files:", Colors.cyan)
             ocb_files = [f for f in os.listdir(ocb_dir) if f.endswith('.ocb')]
@@ -248,6 +275,14 @@ def main():
             read_ocb_bios_version(ocb_file)
         else:
             print_colored("Invalid choice, please restart the script and select 1, 2, 3, or 4.", Colors.red)
+
+        print("\nPress Enter to return to the main menu or ESC to exit.")
+        while True:
+            key = msvcrt.getch()
+            if key == b'\r':  # Enter key
+                main()
+            elif key == b'\x1b':  # ESC key
+                sys.exit(0)
 
     except Exception as e:
         print_colored(f"An error occurred: {e}", Colors.red)
