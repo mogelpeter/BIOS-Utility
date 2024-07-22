@@ -11,12 +11,12 @@ A utility to backup and restore BIOS settings using AFUWINx64. This script allow
 ## Installation
 
 1. Clone the repository or download the script.
-2. Download AFUWINx64 from > https://www.ami.com/bios-uefi-utilities/ and put the named file into the folder `C:\AFUWIN`
+2. Download `AFUWINx64` from https://www.ami.com/bios-uefi-utilities/ and put the `AFUWINx64.EXE` into the folder `C:\AFUWIN`.
 
 ## Usage
 
 1. Navigate to the directory where the script is located.
-2. Run the script with the start.bat file.
+2. Run the script with the `start.bat` file to get automatically admin rights.
 
 ## Options
 
