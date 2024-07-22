@@ -7,7 +7,7 @@ import shutil
 
 # Check and install required modules
 def install_required_modules():
-    required_modules = ['pystyle', 'rich', 'uefi_firmware']
+    required_modules = ['pystyle', 'rich']
     for module in required_modules:
         try:
             __import__(module)
@@ -18,7 +18,6 @@ install_required_modules()
 
 from pystyle import Colors, Colorate, Center, Write, Col
 from rich.console import Console
-from uefi_firmware.uefi import FirmwareVolume
 
 console = Console()
 
@@ -132,25 +131,8 @@ def wait_for_keypress():
     while True:
         if msvcrt.kbhit():
             key = msvcrt.getch().decode('utf-8')
-            if key in ['1', '2', '3', '4']:
+            if key in ['1', '2', '3']:
                 return key
-
-# Analyze the BIOS ROM file to extract settings and save the output to a text file
-def analyze_bios_rom(rom_file, output_file):
-    try:
-        with open(rom_file, 'rb') as f:
-            firmware = f.read()
-            fv = FirmwareVolume(firmware)
-            fv.process()
-            info = fv.showinfo()
-            if info:
-                with open(output_file, 'w') as out_f:
-                    out_f.write(info)
-                print_colored(f"BIOS analysis completed successfully. Output saved to {output_file}", Colors.green)
-            else:
-                print_colored("Failed to extract BIOS information.", Colors.red)
-    except Exception as e:
-        print_colored(f"An error occurred while analyzing the BIOS: {e}", Colors.red)
 
 # Read and print the BIOS version from an OCB file and rename it
 def read_ocb_bios_version(ocb_file):
@@ -206,10 +188,9 @@ def main():
 
         print_gradient("1. Create a backup of the BIOS settings")
         print_gradient("2. Restore the BIOS settings from a backup")
-        print_gradient("3. Analyze BIOS ROM file (WIP)")
-        print_gradient("4. Check BIOS Version of OCB File (MSI)")
+        print_gradient("3. Check BIOS Version of OCB File (MSI)")
         
-        print("Enter your choice (1, 2, 3, or 4): ", end='', flush=True)
+        print("Enter your choice (1, 2, or 3): ", end='', flush=True)
         choice = wait_for_keypress()
 
         clear_console()
@@ -240,19 +221,6 @@ def main():
             else:
                 print_colored("Failed to restore BIOS settings.", Colors.red)
         elif choice == '3':
-            print_colored("Available ROM files:", Colors.cyan)
-            rom_files = [f for f in os.listdir(backup_dir) if f.endswith('.rom')]
-            for idx, rom in enumerate(rom_files):
-                print_colored(f"{idx + 1}. {rom}", Colors.yellow)
-            
-            rom_choice = int(input("Enter the number of the ROM file to analyze: ")) - 1
-            rom_file = os.path.join(backup_dir, rom_files[rom_choice])
-            
-            timestamp = datetime.now().strftime("%d.%m.%Y_%H%M")
-            output_file = os.path.join(analysis_dir, f"bios_analysis_{timestamp}.txt")
-            
-            analyze_bios_rom(rom_file, output_file)
-        elif choice == '4':
             print_colored("Available OCB files:", Colors.cyan)
             ocb_files = [f for f in os.listdir(ocb_dir) if f.endswith('.ocb')]
             for idx, ocb in enumerate(ocb_files):
@@ -263,7 +231,7 @@ def main():
             
             read_ocb_bios_version(ocb_file)
         else:
-            print_colored("Invalid choice, please restart the script and select 1, 2, 3, or 4.", Colors.red)
+            print_colored("Invalid choice, please restart the script and select 1, 2, or 3.", Colors.red)
 
         print("\nPress Enter to return to the main menu or ESC to exit.")
         while True:
